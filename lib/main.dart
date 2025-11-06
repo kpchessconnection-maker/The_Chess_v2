@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'computer_black.dart';
 
 void main() {
   runApp(const MyApp());
@@ -26,13 +27,18 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
+  // This variable holds the state of the chessboard.
+  String currentFen = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
+
+  // State for Stockfish "Skill Level" (0-20). Default to Easy.
+  int _skillLevel = 5; // Easy: 5, Medium: 10, Hard: 20
+
   // Group 1 State: Holds the selected game mode.
   String? _selectedMode = 'Single Player';
 
-  // Group 2 State: Holds the selected difficulty level.
-  String? _selectedDifficulty = 'Easy';
+  // --- REMOVED: No longer need _selectedDifficulty ---
 
-  // --- NEW: Group 3 State for Player Color ---
+  // Group 3 State for Player Color
   PlayerColor _selectedPlayerColor = PlayerColor.white; // Default to White
 
   // Reusable function for the main menu buttons
@@ -72,9 +78,10 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  // Reusable function for the difficulty buttons
-  Widget _buildDifficultyButton({required String level}) {
-    final bool isSelected = _selectedDifficulty == level;
+  // --- UPDATED: Reusable function for the difficulty buttons ---
+  Widget _buildDifficultyButton({required String level, required int skillValue}) {
+    // Check selection based on the integer skill level
+    final bool isSelected = _skillLevel == skillValue;
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8.0),
       child: ElevatedButton(
@@ -86,14 +93,14 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
           fixedSize: const Size(150, 60),
         ),
+        // Update the _skillLevel state variable on press
         onPressed: () {
           setState(() {
-            if (_selectedDifficulty != level) {
-              _selectedDifficulty = level;
+            if (_skillLevel != skillValue) {
+              _skillLevel = skillValue;
             }
           });
         },
-        // --- CHANGE: Added TextStyle for larger font ---
         child: Text(
           level,
           style: const TextStyle(
@@ -105,7 +112,7 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  // --- NEW: Reusable function for the color selection buttons ---
+  // Reusable function for the color selection buttons
   Widget _buildColorButton({
     required String label,
     required PlayerColor color,
@@ -127,7 +134,6 @@ class _HomeScreenState extends State<HomeScreen> {
           }
         });
       },
-      // --- CHANGE: Added TextStyle for larger font ---
       child: Text(
         label,
         textAlign: TextAlign.center,
@@ -157,19 +163,19 @@ class _HomeScreenState extends State<HomeScreen> {
 
               const SizedBox(height: 20),
 
-              // --- Group 2: Difficulty Level ---
+              // --- UPDATED: Group 2: Difficulty Level ---
               Column(
                 children: [
-                  _buildDifficultyButton(level: 'Easy'),
-                  _buildDifficultyButton(level: 'Medium'),
-                  _buildDifficultyButton(level: 'Hard'),
+                  _buildDifficultyButton(level: 'Easy', skillValue: 5),
+                  _buildDifficultyButton(level: 'Medium', skillValue: 10),
+                  _buildDifficultyButton(level: 'Hard', skillValue: 20),
                 ],
               ),
 
               // Use a Spacer to push the next content to the bottom
               const Spacer(flex: 3),
 
-              // --- NEW: Group 3: Player Color ---
+              // --- Group 3: Player Color ---
               Padding(
                 padding: const EdgeInsets.only(bottom: 20.0),
                 child: Row(
@@ -181,7 +187,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
               ),
 
-              // --- NEW: Play Now Button ---
+              // --- Play Now Button ---
               Padding(
                 padding: const EdgeInsets.only(bottom: 20.0),
                 child: ElevatedButton(
@@ -198,9 +204,20 @@ class _HomeScreenState extends State<HomeScreen> {
                     // This is where you would start the game
                     print('Play Now button pressed!');
                     print('Selected Mode: $_selectedMode');
-                    print('Selected Difficulty: $_selectedDifficulty');
+                    // Print the integer skill level
+                    print('Selected Skill Level: $_skillLevel');
                     print('Selected Color: $_selectedPlayerColor');
-                    // Example: Navigator.push(context, MaterialPageRoute(builder: (context) => GameScreen(...)));
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (BuildContext context) {
+                          // --- FIXED: Pass the correct, updated skill level ---
+                          return BlackPlayerScreen(
+                            initialFen: currentFen,
+                            //skillLevel: _skillLevel,
+                          );
+                        },
+                      ),
+                    );
                   },
                   child: const Text(
                     'Play Now!!!',
@@ -219,5 +236,5 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 }
 
-// --- NEW: Enum for type-safe color selection ---
+// Enum for type-safe color selection
 enum PlayerColor { white, black }
