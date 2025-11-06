@@ -1,4 +1,4 @@
-// lib/black.dart
+// lib/computer_black.dart
 
 import 'dart:async';
 import 'package:flutter/material.dart';
@@ -15,13 +15,21 @@ class BlackPlayerScreen extends StatefulWidget {
   State<BlackPlayerScreen> createState() => _BlackPlayerScreenState();
 }
 
-class _BlackPlayerScreenState extends State<BlackPlayerScreen> {
+// --- CHANGE 1: Add the SingleTickerProviderStateMixin ---
+class _BlackPlayerScreenState extends State<BlackPlayerScreen>
+    with SingleTickerProviderStateMixin {
   // 1. CONTROLLERS AND STATE VARIABLES
   late final Stockfish stockfish;
   StreamSubscription? _stockfishSubscription;
   final ChessBoardController _boardController = ChessBoardController();
   late chess_logic.Chess _game;
   bool _isEngineThinking = false;
+
+  bool _isGameOver = false;
+  String _gameOverMessage = "";
+
+  // --- CHANGE 2: Add an AnimationController ---
+  late final AnimationController _animationController;
 
   @override
   void initState() {
@@ -30,6 +38,12 @@ class _BlackPlayerScreenState extends State<BlackPlayerScreen> {
     _boardController.loadFen(_game.fen);
     stockfish = Stockfish();
     _stockfishSubscription = stockfish.stdout.listen(_handleEngineMessage);
+
+    // --- CHANGE 3: Initialize the AnimationController ---
+    _animationController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 700), // Controls blink speed
+    );
 
     stockfish.state.addListener(() {
       if (stockfish.state.value == StockfishState.ready) {
@@ -49,14 +63,13 @@ class _BlackPlayerScreenState extends State<BlackPlayerScreen> {
       final parts = message.split(' ');
       if (parts.length >= 2) {
         final bestMove = parts[1];
-        // This was the line causing Error #1, the method it calls is now re-added below
         _makeEngineMoveOnBoard(bestMove);
       }
     }
   }
 
   void _requestEngineMove() {
-    if (_isEngineThinking || _game.game_over) return;
+    if (_isEngineThinking || _isGameOver) return;
     setState(() {
       _isEngineThinking = true;
     });
@@ -65,58 +78,71 @@ class _BlackPlayerScreenState extends State<BlackPlayerScreen> {
   }
 
   // 3. GAME LOGIC AND UI INTERACTION
-
-  // --- FIX FOR ERROR #1: This method was missing and has been re-added ---
-  /// Called when Stockfish returns its best move.
   void _makeEngineMoveOnBoard(String bestMove) {
-    // Use the chess logic to validate and apply the engine's move
-    final moveResult = _game.move(bestMove);
-
-    if (moveResult != null) {
-      // The engine's move was legal, now update the visual board
-      _boardController.makeMove(
-        from: bestMove.substring(0, 2),
-        to: bestMove.substring(2, 4),
-      );
-    }
+    _game.move(bestMove);
+    _boardController.makeMove(
+      from: bestMove.substring(0, 2),
+      to: bestMove.substring(2, 4),
+    );
 
     setState(() {
       _isEngineThinking = false;
     });
-
     final newFen = _boardController.getFen();
-
-    // Sync our local game instance with the new FEN from the board.
-    // We compare FENs to see if a legal move was actually made.
     if (_game.fen != newFen) {
       _game.load(newFen);
     }
-    // Check for game over conditions
     if (_game.in_checkmate) {
-      _showGameOverDialog("Checkmate!");
+      setState(() {
+        _isGameOver = true;
+        _gameOverMessage = "Checkmate!";
+        _animationController.repeat(reverse: true); // Start blinking
+      });
     } else if (_game.in_draw) {
-      _showGameOverDialog("Draw!");
+      setState(() {
+        _isGameOver = true;
+        _gameOverMessage = "Draw!";
+        _animationController.repeat(reverse: true); // Start blinking
+      });
     }
   }
 
-  // --- FIX FOR ERROR #2: Logic updated for new package API ---
-  /// Called when the player (White) makes a move on the board.
   void _onPlayerMove() {
-    // A move was made on the UI.
-    // The flutter_chess_board controller automatically handles move validation.
-    // We just need to get the FEN of the new position from it.
     final newFen = _boardController.getFen();
-
-    // Sync our local game instance with the new FEN from the board.
-    // We compare FENs to see if a legal move was actually made.
     if (_game.fen != newFen) {
       _game.load(newFen);
-      // A legal move was made, so now it's the engine's turn.
-      _requestEngineMove();
+
+      if (_game.in_checkmate) {
+        setState(() {
+          _isGameOver = true;
+          _gameOverMessage = "Checkmate!";
+          _animationController.repeat(reverse: true); // Start blinking
+        });
+      } else if (_game.in_draw) {
+        setState(() {
+          _isGameOver = true;
+          _gameOverMessage = "Draw!";
+          _animationController.repeat(reverse: true); // Start blinking
+        });
+      } else {
+        _requestEngineMove();
+      }
     } else {
-      // An illegal move was attempted and the board controller reverted it.
       print("Illegal move attempted.");
     }
+  }
+
+  void _resetGame() {
+    setState(() {
+      _isGameOver = false;
+      _gameOverMessage = "";
+      _animationController.stop(); // Stop blinking
+      _game.reset();
+      _boardController.loadFen(_game.fen);
+      if (_game.turn == chess_logic.Color.BLACK) {
+        _requestEngineMove();
+      }
+    });
   }
 
   @override
@@ -124,6 +150,8 @@ class _BlackPlayerScreenState extends State<BlackPlayerScreen> {
     _stockfishSubscription?.cancel();
     stockfish.dispose();
     _boardController.dispose();
+    // --- CHANGE 4: Dispose the animation controller ---
+    _animationController.dispose();
     super.dispose();
   }
 
@@ -131,70 +159,84 @@ class _BlackPlayerScreenState extends State<BlackPlayerScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Play against Stockfish'),
-      ),
+      appBar: AppBar(title: const Text('Play against Stockfish')),
       body: Column(
         children: [
           Expanded(
             child: Center(
-              child: ChessBoard(
-                controller: _boardController,
-                boardColor: BoardColor.brown,
-                boardOrientation: PlayerColor.white,
-                onMove: () {
-                  // This callback is correct, it takes no arguments
-                  _onPlayerMove();
-                },
+              child: AbsorbPointer(
+                absorbing: _isGameOver,
+                child: ChessBoard(
+                  controller: _boardController,
+                  boardColor: BoardColor.brown,
+                  boardOrientation: PlayerColor.white,
+                  onMove: _onPlayerMove,
+                ),
               ),
             ),
           ),
-          Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const Text(
-                  "Stockfish is thinking...",
-                  style: TextStyle(fontSize: 18),
-                ),
-                if (_isEngineThinking)
-                  const Padding(
-                    padding: EdgeInsets.only(left: 10),
-                    child: SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(strokeWidth: 3),
-                    ),
-                  ),
-              ],
+          if (_isGameOver)
+            _buildGameOverBanner()
+          else
+            _buildThinkingIndicator(),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildGameOverBanner() {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 12.0, horizontal: 20.0),
+      color: Colors.green.withOpacity(0.9),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          // --- CHANGE 5: Wrap the Text widget in a FadeTransition ---
+          FadeTransition(
+            opacity: _animationController,
+            child: Text(
+              _gameOverMessage,
+              style: const TextStyle(
+                fontSize: 22,
+                fontWeight: FontWeight.bold,
+                color: Colors.white,
+              ),
             ),
+          ),
+          ElevatedButton(
+            onPressed: _resetGame,
+            style: ElevatedButton.styleFrom(
+              foregroundColor: Colors.black,
+              backgroundColor: Colors.white,
+            ),
+            child: const Text('Play Again'),
           ),
         ],
       ),
     );
   }
 
-  void _showGameOverDialog(String title) {
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: Text(title),
-          content: Text('The game has ended.'),
-          actions: <Widget>[
-            TextButton(
-              child: const Text('Play Again'),
-              onPressed: () {
-                _game.reset();
-                _boardController.loadFen(_game.fen);
-                Navigator.of(context).pop();
-                setState(() {});
-              },
+  Widget _buildThinkingIndicator() {
+    return Padding(
+      padding: const EdgeInsets.all(16.0),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Text(
+            _isEngineThinking ? "Stockfish is thinking..." : "Your move.",
+            style: const TextStyle(fontSize: 18),
+          ),
+          if (_isEngineThinking)
+            const Padding(
+              padding: EdgeInsets.only(left: 10),
+              child: SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(strokeWidth: 3),
+              ),
             ),
-          ],
-        );
-      },
+        ],
+      ),
     );
   }
 }
