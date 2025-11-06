@@ -7,7 +7,8 @@ void main() {
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
-  @override  Widget build(BuildContext context) {
+  @override
+  Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       theme: ThemeData(useMaterial3: false, primarySwatch: Colors.green),
@@ -25,26 +26,25 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  // --- CHANGE: Initialize with default values ---
-  // Group 1 State: Holds the selected game mode. Default to 'Single Player'.
+  // Group 1 State: Holds the selected game mode.
   String? _selectedMode = 'Single Player';
 
-  // Group 2 State: Holds the selected difficulty level. Default to 'Easy'.
+  // Group 2 State: Holds the selected difficulty level.
   String? _selectedDifficulty = 'Easy';
 
-  // Reusable function for the main menu buttons (Single Player, Multi Player)
+  // --- NEW: Group 3 State for Player Color ---
+  PlayerColor _selectedPlayerColor = PlayerColor.white; // Default to White
+
+  // Reusable function for the main menu buttons
   Widget _buildMainMenuButton({required String title}) {
-    // Check if this button is the currently selected one in its group.
     final bool isSelected = _selectedMode == title;
 
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 10.0),
       child: ElevatedButton(
         style: ElevatedButton.styleFrom(
-          // ** REQUIREMENT MET: Change color based on selection state **
           backgroundColor: isSelected ? Colors.amber[300] : Colors.grey[400],
           foregroundColor: Colors.black,
-          // Keep text color consistent
           shadowColor: Colors.greenAccent,
           elevation: isSelected ? 10 : 3,
           shape: RoundedRectangleBorder(
@@ -53,11 +53,9 @@ class _HomeScreenState extends State<HomeScreen> {
           fixedSize: const Size(300, 120),
         ),
         onPressed: () {
-          // ** REQUIREMENT MET: A button can only be deselected by selecting another **
           setState(() {
-            // Only update the state if a *different* button is pressed.
             if (_selectedMode != title) {
-              _selectedMode = title; // Select this one
+              _selectedMode = title;
             }
           });
         },
@@ -74,35 +72,69 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  // Reusable function for the smaller difficulty buttons
+  // Reusable function for the difficulty buttons
   Widget _buildDifficultyButton({required String level}) {
-    // Check if this button is the currently selected one in its group.
     final bool isSelected = _selectedDifficulty == level;
-    // --- CHANGE: Added Padding widget to surround the button ---
     return Padding(
-      // Adds 8 pixels of padding on the top and bottom of each button
-      padding: const EdgeInsets.symmetric(vertical: 12.0),
+      padding: const EdgeInsets.symmetric(vertical: 8.0),
       child: ElevatedButton(
         style: ElevatedButton.styleFrom(
-          // ** REQUIREMENT MET: Change color based on selection state **
           backgroundColor: isSelected ? Colors.amber[300] : Colors.grey[400],
-          foregroundColor: Colors.black, // Keep text color consistent
+          foregroundColor: Colors.black,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(20.0),
           ),
           fixedSize: const Size(150, 60),
         ),
         onPressed: () {
-          // ** REQUIREMENT MET: A button can only be deselected by selecting another **
           setState(() {
-            // Only update the state if a *different* button is pressed.
             if (_selectedDifficulty != level) {
               _selectedDifficulty = level;
             }
-            print("Difficulty set to: $_selectedDifficulty");
           });
         },
-        child: Text(level),
+        // --- CHANGE: Added TextStyle for larger font ---
+        child: Text(
+          level,
+          style: const TextStyle(
+            fontSize: 25,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+      ),
+    );
+  }
+
+  // --- NEW: Reusable function for the color selection buttons ---
+  Widget _buildColorButton({
+    required String label,
+    required PlayerColor color,
+  }) {
+    final bool isSelected = _selectedPlayerColor == color;
+    return ElevatedButton(
+      style: ElevatedButton.styleFrom(
+        backgroundColor: isSelected ? Colors.amber[300] : Colors.grey[400],
+        foregroundColor: Colors.black,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(40.0),
+        ),
+        fixedSize: const Size(160, 100), // Slightly smaller to fit side-by-side
+      ),
+      onPressed: () {
+        setState(() {
+          if (_selectedPlayerColor != color) {
+            _selectedPlayerColor = color;
+          }
+        });
+      },
+      // --- CHANGE: Added TextStyle for larger font ---
+      child: Text(
+        label,
+        textAlign: TextAlign.center,
+        style: const TextStyle(
+          fontSize: 30,
+          fontWeight: FontWeight.bold,
+        ),
       ),
     );
   }
@@ -117,26 +149,66 @@ class _HomeScreenState extends State<HomeScreen> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
+              // Use a Spacer to push the first group up
+              const Spacer(flex: 2),
+
               // --- Group 1: Game Mode ---
               _buildMainMenuButton(title: 'Single Player'),
-              //_buildMainMenuButton(title: 'Multi Player'),
 
-              // Add some space between the two groups
-              const SizedBox(height: 30),
+              const SizedBox(height: 20),
 
               // --- Group 2: Difficulty Level ---
-              // This outer Padding is no longer strictly necessary but can be kept
-              // to control the space around the entire group of buttons.
+              Column(
+                children: [
+                  _buildDifficultyButton(level: 'Easy'),
+                  _buildDifficultyButton(level: 'Medium'),
+                  _buildDifficultyButton(level: 'Hard'),
+                ],
+              ),
+
+              // Use a Spacer to push the next content to the bottom
+              const Spacer(flex: 3),
+
+              // --- NEW: Group 3: Player Color ---
               Padding(
-                padding: const EdgeInsets.symmetric(vertical: 16.0),
-                child: Column(
+                padding: const EdgeInsets.only(bottom: 20.0),
+                child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                   children: [
-                    // The padding is now applied by the builder function itself
-                    _buildDifficultyButton(level: 'Easy'),
-                    _buildDifficultyButton(level: 'Medium'),
-                    _buildDifficultyButton(level: 'Hard'),
+                    _buildColorButton(label: 'Play as White', color: PlayerColor.white),
+                    _buildColorButton(label: 'Play as Black', color: PlayerColor.black),
                   ],
+                ),
+              ),
+
+              // --- NEW: Play Now Button ---
+              Padding(
+                padding: const EdgeInsets.only(bottom: 20.0),
+                child: ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.green,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(30.0),
+                    ),
+                    fixedSize: const Size(300, 70),
+                    elevation: 10,
+                  ),
+                  onPressed: () {
+                    // This is where you would start the game
+                    print('Play Now button pressed!');
+                    print('Selected Mode: $_selectedMode');
+                    print('Selected Difficulty: $_selectedDifficulty');
+                    print('Selected Color: $_selectedPlayerColor');
+                    // Example: Navigator.push(context, MaterialPageRoute(builder: (context) => GameScreen(...)));
+                  },
+                  child: const Text(
+                    'Play Now!!!',
+                    style: TextStyle(
+                      fontSize: 28,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
                 ),
               ),
             ],
@@ -146,3 +218,6 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 }
+
+// --- NEW: Enum for type-safe color selection ---
+enum PlayerColor { white, black }
