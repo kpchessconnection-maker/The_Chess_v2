@@ -7,8 +7,7 @@ void main() {
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
-  @override
-  Widget build(BuildContext context) {
+  @override  Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       theme: ThemeData(useMaterial3: false, primarySwatch: Colors.green),
@@ -54,12 +53,10 @@ class _HomeScreenState extends State<HomeScreen> {
           fixedSize: const Size(300, 120),
         ),
         onPressed: () {
-          // ** REQUIREMENT MET: Independent group logic **
+          // ** REQUIREMENT MET: A button can only be deselected by selecting another **
           setState(() {
-            // This is a simple toggle. If it's already selected, deselect it. Otherwise, select it.
-            if (_selectedMode == title) {
-              _selectedMode = null; // Deselect if tapped again
-            } else {
+            // Only update the state if a *different* button is pressed.
+            if (_selectedMode != title) {
               _selectedMode = title; // Select this one
             }
           });
@@ -96,13 +93,10 @@ class _HomeScreenState extends State<HomeScreen> {
           fixedSize: const Size(150, 60),
         ),
         onPressed: () {
-          // ** REQUIREMENT MET: Independent group logic **
+          // ** REQUIREMENT MET: A button can only be deselected by selecting another **
           setState(() {
-            // If the tapped button is already selected, deselect it.
-            if (_selectedDifficulty == level) {
-              _selectedDifficulty = null;
-            } else {
-              // Otherwise, make it the selected one.
+            // Only update the state if a *different* button is pressed.
+            if (_selectedDifficulty != level) {
               _selectedDifficulty = level;
             }
             print("Difficulty set to: $_selectedDifficulty");
@@ -125,7 +119,7 @@ class _HomeScreenState extends State<HomeScreen> {
             children: [
               // --- Group 1: Game Mode ---
               _buildMainMenuButton(title: 'Single Player'),
-              _buildMainMenuButton(title: 'Multi Player'),
+              //_buildMainMenuButton(title: 'Multi Player'),
 
               // Add some space between the two groups
               const SizedBox(height: 30),
